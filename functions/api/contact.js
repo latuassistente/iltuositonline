@@ -50,6 +50,7 @@ export async function onRequestPost({ request, env }) {
   const phone = String(body.phone || '').trim().slice(0, 50);
   const service = String(body.service || '').trim().slice(0, 160);
   const message = String(body.message || '').trim().slice(0, 5000);
+  const leadSource = String(body.leadSource || '').trim().slice(0, 100);
   const consent = body.privacyConsent === true;
 
   if (!fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
@@ -84,6 +85,7 @@ export async function onRequestPost({ request, env }) {
           `Email: ${email}`,
           `Telefono: ${phone || 'Non indicato'}`,
           `Servizio: ${service}`,
+          `Lead source: ${leadSource || 'Non indicata'}`,
           '',
           'Richiesta:',
           message,
