@@ -51,6 +51,11 @@ export async function onRequestPost({ request, env }) {
   const service = String(body.service || '').trim().slice(0, 160);
   const message = String(body.message || '').trim().slice(0, 5000);
   const leadSource = String(body.leadSource || '').trim().slice(0, 100);
+  const utmSource = String(body.utmSource || '').trim().slice(0, 150);
+  const utmMedium = String(body.utmMedium || '').trim().slice(0, 150);
+  const utmCampaign = String(body.utmCampaign || '').trim().slice(0, 200);
+  const landingPage = String(body.landingPage || '').trim().slice(0, 500);
+  const referrer = String(body.referrer || '').trim().slice(0, 500);
   const consent = body.privacyConsent === true;
 
   if (!fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
@@ -85,7 +90,12 @@ export async function onRequestPost({ request, env }) {
           `Email: ${email}`,
           `Telefono: ${phone || 'Non indicato'}`,
           `Servizio: ${service}`,
-          `Lead source: ${leadSource || 'Non indicata'}`,
+          `Lead source dichiarata: ${leadSource || 'Non indicata'}`,
+          `UTM source: ${utmSource || 'Non presente'}`,
+          `UTM medium: ${utmMedium || 'Non presente'}`,
+          `UTM campaign: ${utmCampaign || 'Non presente'}`,
+          `Pagina di ingresso: ${landingPage || 'Non rilevata'}`,
+          `Referrer: ${referrer || 'Non rilevato'}`,
           '',
           'Richiesta:',
           message,
