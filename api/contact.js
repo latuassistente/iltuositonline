@@ -75,7 +75,7 @@ export default async function handler(req, res) {
           message,
           '',
           'Consenso privacy dichiarato: sì'
-        ].join('\\n')
+        ].join('\n')
       })
     });
 
