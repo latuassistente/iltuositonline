@@ -1,5 +1,3 @@
-import { neon } from '@neondatabase/serverless';
-
 const allowedServices = new Set([
   'Sito Basic — SEO (€300)',
   'Sito Basic — SEO + GEO (€500)',
@@ -32,7 +30,7 @@ export default async function handler(req, res) {
   }
 
   const body = req.body || {};
-  // Honeypot anti-spam: i bot che compilano questo campo vengono scartati.
+  // Honeypot anti-spam: scarta silenziosamente i bot che compilano il campo nascosto.
   if (body.website) return reply(res, 200, { ok: true });
 
   const fullName = String(body.name || '').trim().slice(0, 160);
@@ -47,23 +45,12 @@ export default async function handler(req, res) {
       !allowedServices.has(service) || !message || !consent) {
     return reply(res, 400, { ok: false, message: 'Controlla i campi obbligatori e il consenso privacy.' });
   }
-  if (!process.env.DATABASE_URL || !process.env.RESEND_API_KEY) {
-    return reply(res, 503, { ok: false, message: 'Il sistema di invio non è ancora configurato. Contatta Valentina via WhatsApp.' });
+
+  if (!process.env.RESEND_API_KEY) {
+    return reply(res, 503, { ok: false, message: 'Il servizio email non è ancora configurato. Contatta Valentina tramite un recapito alternativo.' });
   }
 
   try {
-    const sql = neon(process.env.DATABASE_URL);
-    const rows = await sql`
-      INSERT INTO contact_requests
-        (full_name, business_name, email, phone, service, message, consent_privacy, source, user_agent)
-      VALUES
-        (${fullName}, ${businessName || null}, ${email}, ${phone || null},
-         ${service}, ${message}, ${consent}, 'website',
-         ${String(req.headers['user-agent'] || '').slice(0, 500)})
-      RETURNING id, created_at
-    `;
-    const record = rows[0];
-
     const mailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -71,42 +58,42 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: process.env.MAIL_FROM || 'Sito Il Tuo Sito Online <onboarding@resend.dev>',
-        to: ['latuassistente@gmail.com'],
+        from: process.env.MAIL_FROM || 'Il Tuo Sito Online <onboarding@resend.dev>',
+        to: ['latuassistente@mail.com'],
         reply_to: email,
         subject: `Nuova richiesta dal sito: ${service}`,
         text: [
           'Nuova richiesta ricevuta dal sito Il Tuo Sito Online.',
           '',
-          `ID richiesta: ${record.id}`,
           `Nome: ${fullName}`,
           `Attività: ${businessName || 'Non indicata'}`,
           `Email: ${email}`,
           `Telefono: ${phone || 'Non indicato'}`,
           `Servizio: ${service}`,
           '',
-          'Progetto:',
+          'Richiesta:',
           message,
           '',
-          'Consenso privacy registrato: sì'
-        ].join('\n')
+          'Consenso privacy dichiarato: sì'
+        ].join('\\n')
       })
     });
 
     if (!mailResponse.ok) {
-      const errorText = (await mailResponse.text()).slice(0, 1000);
-      await sql`UPDATE contact_requests SET notification_error = ${errorText} WHERE id = ${record.id}`;
+      const errorText = (await mailResponse.text()).slice(0, 500);
+      console.error('Email provider rejected contact notification', errorText);
       return reply(res, 502, {
         ok: false,
-        saved: true,
-        message: 'La richiesta è stata salvata, ma la notifica email non è riuscita. Riprova più tardi o contatta Valentina via WhatsApp.'
+        message: 'Non è stato possibile inviare la richiesta. Riprova oppure contatta Valentina tramite un recapito alternativo.'
       });
     }
 
-    await sql`UPDATE contact_requests SET notification_sent_at = NOW() WHERE id = ${record.id}`;
-    return reply(res, 200, { ok: true, message: 'Richiesta inviata correttamente. Ti ricontatterò appena possibile.' });
+    return reply(res, 200, {
+      ok: true,
+      message: 'Richiesta inviata correttamente. Ti ricontatterò appena possibile.'
+    });
   } catch (error) {
-    console.error('Contact request failed', error);
-    return reply(res, 500, { ok: false, message: 'Si è verificato un errore. Contatta Valentina via WhatsApp.' });
+    console.error('Contact notification failed', error);
+    return reply(res, 500, { ok: false, message: 'Si è verificato un errore durante l’invio. Riprova più tardi.' });
   }
 }
